@@ -240,7 +240,7 @@
         public int GlamourExperienceIncrease { get; set; }
         public int ReputationIncrease { get; set; }
 
-        public OngoingBattle Battle { get; set; }
+       // public OngoingBattle Battle { get; set; }
 
         private String oldFactionName = "";
         public String OldFactionName
@@ -4016,7 +4016,7 @@
         {
 
 
-            if (this.BelongedFaction != null && this.BelongedFaction.Leader.BelongedCaptive == null && this.BelongedFaction.PrinceID == -1 && this.Fund >= Parameters.SelectPrinceCost && this.BelongedFaction.Leader.PrinceCandicate().Count > 0)
+            if (this.BelongedFaction != null && this.BelongedFaction.Leader.BelongedCaptive == null && this.BelongedFaction.PrinceID == -1 && this.Fund >= Parameters.SelectPrinceCost && this.BelongedFaction.Leader.ChildrenCanBeSelectedAsPrince().Count > 0)
             {
                 return true;
             }
@@ -4973,6 +4973,11 @@
                     {
                         base.Scenario.EventsToApply.Add(e, this);
                         e.ApplyEventDialogs(this);
+                        if (e.faction != null && e.faction.GameObjects.Contains(this.BelongedFaction))
+                        {
+                            base.Scenario.EventsToApply.Add(e, this);
+                            e.ApplyEventDialogs(this);
+                        }
                     }
                 }
             }
@@ -5020,18 +5025,7 @@
             ExpectedFundCache = -1;
             this.SuspendTroopTransfer--;
         }
-        /*
-        private void CheckMayor()
-        {
-            if (this.Mayor != null && this.Mayor.BelongedCaptive != null)
-            {
-                if (this.Domination > this.DominationCeiling / 2)
-                {
-                    this.DecreaseDomination(this.DominationCeiling / 5);
-                }
-            }
-        }
-        */
+
         private void RestEvent()
         {
             foreach (Military m in this.Militaries)
@@ -9555,7 +9549,7 @@
         private int getArmyScaleRequiredForAttack(LinkNode wayToTarget)
         {
             Person leader = this.BelongedFaction.Leader;
-            return (int)((wayToTarget.A.ArmyScale +
+            return (int)((wayToTarget.A.ArmyScale + wayToTarget.A.Endurance / 15 +
                             (wayToTarget.A.DefensiveLegion == null || base.Scenario.IsPlayer(wayToTarget.A.BelongedFaction) ? 0 : wayToTarget.A.DefensiveLegion.ArmyScale * Parameters.AIOffendDefendingTroopRate)) *
                             (Parameters.AIOffendDefendTroopAdd + (leader.Calmness - leader.Braveness + (3 - (int)leader.Ambition) * 2) * Parameters.AIOffendDefendTroopMultiply));
         }
@@ -10370,7 +10364,7 @@
                 {
                     return false;
                 }
-                if (this.BelongedFaction != null && this.BelongedFaction.Army > (int)(this.BelongedFaction.Population * GlobalVariables.ArmyPopulationCap)) //势力兵力超过上限时，不能补充
+                if (this.BelongedFaction != null && this.BelongedFaction.Army > (long)(this.BelongedFaction.Population * GlobalVariables.ArmyPopulationCap)) //势力兵力超过上限时，不能补充
                 {
                     return false;
                 }

@@ -1200,6 +1200,7 @@
             this.AITransfer();
             this.AIArchitectures();
             this.AILegions();
+            this.AIReward();
             this.AIFinished = true;
             base.Scenario.Threading = false;
         }
@@ -1850,6 +1851,11 @@
                     }
                     if ((captive.BelongedFaction.Capital != null) && (captive.RansomArriveDays <= 0))
                     {
+                        if (captive.CaptivePerson == this.Leader && this.Capital.Fund >= captive.Ransom)
+                        {
+                            captive.SendRansom(captive.BelongedFaction.Capital, this.Capital);
+                            continue;
+                        }
                         int diplomaticRelation = base.Scenario.GetDiplomaticRelation(captive.BelongedFaction.ID, base.ID);
                         if ((diplomaticRelation >= 0) || (GameObject.Random(Math.Abs(diplomaticRelation) + 50) < 50))
                         {
@@ -2223,6 +2229,7 @@
                 this.RemoveSection(section);
                 base.Scenario.Sections.Remove(section);
             }
+            
             this.Destroy();
             foreach (Architecture architecture in base.Scenario.Architectures)
             {
@@ -2740,7 +2747,7 @@
             {
                 if (GameObject.Random(10) == 0 && (this.Capital != null) && this.Capital.SelectPrinceAvail())
                 {
-                    Person person = this.Leader.PrinceCandicate()[0] as Person;
+                    Person person = this.Leader.ChildrenCanBeSelectedAsPrince()[0] as Person;
                     this.PrinceID = person.ID;
                     this.Capital.DecreaseFund(Parameters.SelectPrinceCost);
                     this.Capital.SelectPrince(person); //AI立储年表和报告
@@ -2901,6 +2908,52 @@
                 }
             }     
             
+        }
+
+        private void AIReward()
+        {
+            if (!base.Scenario.IsPlayer(this) && this.RewardTroopPersonAvail())
+            {
+                this.RewardTroopPerson();
+            }
+        }
+
+        public bool RewardTroopPersonAvail()
+        {
+            return this.RewardableTroopPersons().Count > 0 && this.Capital.Fund > this.Capital .RewardPersonFund;
+        }
+
+        public PersonList RewardableTroopPersons()
+        {
+            PersonList list = new PersonList();
+            foreach (Troop troop in this.Troops)
+            {
+                foreach (Person person in troop.Persons)
+                {
+                    if ((!person.RewardFinished && (person.Loyalty < 100)) && (person != this.Leader))
+                    {
+                        list.Add(person);
+                    }
+                }
+            }
+            return list;
+        }
+             
+
+        public void RewardTroopPerson()
+        {
+            if (this.TroopCount == 0) return;
+
+            if (this.Capital.Fund < this.Capital.RewardPersonFund) return;
+
+            foreach (Person person in this.RewardableTroopPersons())
+            {
+                person.RewardFinished = true;
+                this.Capital.DecreaseFund(this.Capital.RewardPersonFund);
+                int idealOffset = Person.GetIdealOffset(person, this.Leader);
+                person.IncreaseLoyalty((15 - (idealOffset / 5)) + 4 - (int)person.PersonalLoyalty);
+            }
+
         }
 
         private void AIchaotingshijian()
@@ -3780,8 +3833,17 @@
             this.PlayerTechniqueAI();
             this.PlayerAIArchitectures();
             this.PlayerAILegions();
+            this.PlayerAIRewardTroopPerson();
             this.AIFinished = true;
             base.Scenario.Threading = false;
+        }
+
+        private void PlayerAIRewardTroopPerson()
+        {
+            if (base.Scenario.IsPlayer(this) && this.RewardTroopPersonAvail())
+            {
+                this.RewardTroopPerson();
+            }
         }
 
         private void PlayerAIArchitectures()
@@ -5385,11 +5447,11 @@
             }
         }
 
-        public int Army
+        public long Army
         {
             get
             {
-                int num = 0;
+                long num = 0;
                 foreach (Architecture architecture in this.Architectures)
                 {
                     num += architecture.ArmyQuantity;

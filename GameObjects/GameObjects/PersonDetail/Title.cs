@@ -198,7 +198,7 @@
 
         public bool CanLearn(Person person, bool ignoreAutoLearn)
         {
-            if (AutoLearn > 0 && ignoreAutoLearn) return false;
+            if (AutoLearn > 0 && !ignoreAutoLearn) return false; 
             foreach (Condition condition in this.Conditions.Conditions.Values)
             {
                 if (!condition.CheckCondition(person))
@@ -398,10 +398,12 @@
                 {
                     str = str + "•" + condition.Name;
                 }
+                /*
                 foreach (Condition condition in this.LoseConditions.Conditions.Values)
                 {
                     str = str + "•" + condition.Name;
                 }
+                */
               
                 return str;
             }

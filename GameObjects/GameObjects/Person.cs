@@ -217,7 +217,7 @@
         public int GlamourExperienceIncrease { get; set; }
         public int ReputationDayIncrease { get; set; }
 
-        public OngoingBattle Battle { get; set; }
+        //public OngoingBattle Battle { get; set; }
         public int BattleSelfDamage { get; set; }
 
         private Captive belongedCaptive;
@@ -1530,6 +1530,7 @@
                 this.huaiyunshijian();
                 this.updateDayCounters();
                 this.createRelations();
+                this.AutoLearnEvent();
 
                 List<int> toRemove = new List<int>();
                 foreach (KeyValuePair<int, int> i in new Dictionary<int, int>(this.ProhibitedFactionID))
@@ -1561,6 +1562,41 @@
             enduranceAbility = 0;
             trainingAbility = 0;
             higherLevelLearnableTitle = null;
+        }
+
+        private void AutoLearnEvent()
+        {
+            if (this.BelongedFaction != null)
+            {
+                this.AutoLearnSkill();
+                this.AutoLearnStunt();
+            }
+        }
+
+        private void AutoLearnSkill()
+        {
+            string skillString = "";
+            foreach (Skill skill in base.Scenario.GameCommonData.AllSkills.Skills.Values)
+            {
+                if (((this.Skills.GetSkill(skill.ID) == null) && skill.CanLearn(this)) && (GameObject.Chance(Parameters.LearnSkillSuccessRate)))
+                {
+                    this.Skills.AddSkill(skill);
+                    skill.Influences.ApplyInfluence(this, GameObjects.Influences.Applier.Skill, skill.ID, false);
+                    skillString = skillString + "•" + skill.Name;
+                }
+            }
+        }
+
+        private void AutoLearnStunt()
+        {
+            foreach (Stunt stunt in base.Scenario.GameCommonData.AllStunts.Stunts.Values)
+            {
+                if ((this.Stunts.GetStunt(stunt.ID) == null) && stunt.IsLearnable(this) && (GameObject.Chance(Parameters.LearnStuntSuccessRate)))
+                {
+                    this.Stunts.AddStunt(stunt);
+                    stunt.Influences.ApplyInfluence(this, GameObjects.Influences.Applier.Stunt, stunt.ID, false);
+                }
+            }
         }
 
         public PersonList MakeMarryable()
@@ -2672,6 +2708,8 @@
 
             if (targetFaction == sourceFaction) return false;
 
+           // if (base.Scenario.IsPlayer(sourceFaction)) return true;
+
             if (sourceFaction.Army == 0) return false;
 
             if (sourceFaction.Reputation <= targetFaction.Reputation) return false;
@@ -2699,7 +2737,12 @@
             shizhe.Scenario.GameScreen.xianshishijiantupian(shizhe, sourceFaction.Leader.Name, TextMessageKind.QuanXiang, "QuanXiangDiplomaticRelation", "QuanXiangDiplomaticRelation.jpg", "shilimiewang.wma", targetFaction.Name, true);
 
             shizhe.Scenario.YearTable.addChangeFactionEntry(shizhe.Scenario.Date, targetFaction, sourceFaction);
+            foreach (Person p in targetFaction.Persons.GetList())
+            {
+                p.InitialLoyalty();
+            }
             targetFaction.ChangeFaction(sourceFaction);
+            
             targetFaction.AfterChangeLeader(targetFaction.Leader, sourceFaction.Leader);
                 
             foreach (Treasure treasure in targetFaction.Leader.Treasures.GetList())
@@ -3525,7 +3568,7 @@
             int num = Math.Abs((int)(p1.Ideal - p2.Ideal));
             if (num > 75)
             {
-                num = 150 - num;
+                num = Math.Abs(150 - num);
             }
             return num;
         }
@@ -3619,7 +3662,7 @@
             this.AppointableTitleList.Clear();
             foreach (Title title in base.Scenario.GameCommonData.AllTitles.Titles.Values)
             {
-                if (!this.RealTitles.Contains(title) && !this.HasHigherLevelTitle(title) && title.ManualAward && title.CanLearn(this))        
+                if (!this.RealTitles.Contains(title) && !this.HasHigherLevelTitle(title) && title.ManualAward && title.CanLearn(this,true))        
                 {
                     this.AppointableTitleList.Add(title);
                 }
@@ -7256,13 +7299,13 @@
             }
         }
 
-        public PersonList PrinceCandicate()
+        public PersonList ChildrenCanBeSelectedAsPrince()
         {
             PersonList candicate = new PersonList();
             foreach (Person person in this.Scenario.Persons)
             {
                 if (person.Alive && person.Available && person.BelongedCaptive == null && person.sex == false 
-                    && person.BelongedFaction == this.BelongedFaction && person.BelongedFaction != null && person != this.BelongedFaction.Leader)
+                    && person.BelongedFaction == this.BelongedFaction && person.BelongedFaction != null && this == person.Father)
                 {
                     candicate.Add(person);
                 }
@@ -8782,7 +8825,7 @@
             int val;
             if (factor > 0)
             {
-                val = (int)((75 - Person.GetIdealOffset(this, p)) * 30 * factor / 75 + adjust);
+                val = (int)(Math.Max(0, 75 - Person.GetIdealOffset(this, p)) * 30 * factor / 75 + adjust);
             }
             else
             {
